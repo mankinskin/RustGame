@@ -1,0 +1,6 @@
+[package]
+name = "RustGame"
+version = "0.1.0"
+authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
+
+[dependencies]
