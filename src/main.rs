@@ -1,4 +1,8 @@
+mod core;
+use core::*;
 
 fn main() {
-    println!("Hello world!");
+    setup();
+    frameloop();
+    cleanup();
 }
