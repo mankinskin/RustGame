@@ -1,3 +1,8 @@
+/*
+ * core.rs
+ */
+use input;
+
 pub enum State {
     Startup,
     Running,
@@ -7,6 +12,7 @@ pub enum State {
 pub fn setup(state: &mut State) {
     println!("Hello world!");
     *state = State::Running;
+    input::init();
 }
 
 pub fn frameloop(state: &mut State) {
@@ -15,7 +21,7 @@ pub fn frameloop(state: &mut State) {
             State::Quitting => break,
             _ => (),
         }
-        quit(state);
+        input::update(state);
         println!("DumDi");
     }
 }

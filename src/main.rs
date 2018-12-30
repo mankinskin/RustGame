@@ -1,9 +1,12 @@
+/*
+ * main.rs
+ */
 mod core;
-use core::*;
+mod input;
 
 fn main() {
-    let mut state = State::Startup;
-    setup(&mut state);
-    frameloop(&mut state);
-    cleanup();
+    let mut state = core::State::Startup;
+    core::setup(&mut state);
+    core::frameloop(&mut state);
+    core::cleanup();
 }
