@@ -2,6 +2,7 @@
  * core.rs
  */
 use input;
+use winit;
 use window::Window;
 
 pub struct Application {
@@ -18,7 +19,11 @@ impl Application {
 }
 
 pub fn frameloop(app: &mut Application) {
-    input::update(app);
+    app.window.events_loop.run_forever(frame);
+}
+
+fn frame(event: winit::Event) -> winit::ControlFlow {
+    input::update(event)
 }
 
 pub fn cleanup() {

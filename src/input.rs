@@ -7,21 +7,19 @@ pub fn init() {
 
 }
 
-fn should_quit(event: winit::Event) -> bool {
+fn handle_window_event(event: winit::WindowEvent) -> winit::ControlFlow {
     match event {
-        winit::Event::WindowEvent {
-            event: winit::WindowEvent::CloseRequested,
-            .. } => true,
-            _ => false
+        winit::WindowEvent::CloseRequested => winit::ControlFlow::Break,
+        _ => winit::ControlFlow::Continue
     }
 }
 
-pub fn update(app: &mut core::Application) {
-    app.window.events_loop.run_forever(|event| {
-        println!("{:?}", event);
-        match event {
-            _ if should_quit(event) => winit::ControlFlow::Break,
-            _ => winit::ControlFlow::Continue
-        }
-    });
+pub fn update(event: winit::Event) -> winit::ControlFlow {
+    match event {
+        winit::Event::WindowEvent {
+            event,
+            ..
+        } => handle_window_event(event),
+        _  => winit::ControlFlow::Continue
+    }
 }
