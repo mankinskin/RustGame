@@ -1,19 +1,27 @@
 /*
  * input.rs
  */
-use std::io;
-use core;
+extern crate winit;
 
 pub fn init() {
 
 }
 
-pub fn update(state: &mut core::State) {
-    let stdin = io::stdin();
-    let mut buffer = String::new();
-    match stdin.read_line(&mut buffer) {
-        Ok(_) => println!("{}", buffer),
-        _ => println!("No input.")
+fn should_quit(event: winit::Event) -> bool {
+    match event {
+        winit::Event::WindowEvent {
+            event: winit::WindowEvent::CloseRequested,
+            .. } => true,
+            _ => false
     }
-    core::quit(state);
+}
+
+pub fn update(app: &mut core::Application) {
+    app.window.events_loop.run_forever(|event| {
+        println!("{:?}", event);
+        match event {
+            _ if should_quit(event) => winit::ControlFlow::Break,
+            _ => winit::ControlFlow::Continue
+        }
+    });
 }

@@ -3,10 +3,11 @@
  */
 mod core;
 mod input;
+mod window;
+extern crate winit;
 
 fn main() {
-    let mut state = core::State::Startup;
-    core::setup(&mut state);
-    core::frameloop(&mut state);
+    let mut app = core::Application::new();
+    core::frameloop(&mut app);
     core::cleanup();
 }

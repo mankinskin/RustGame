@@ -2,33 +2,25 @@
  * core.rs
  */
 use input;
+use window::Window;
 
-pub enum State {
-    Startup,
-    Running,
-    Quitting,
+pub struct Application {
+    pub window: Window
 }
 
-pub fn setup(state: &mut State) {
-    println!("Hello world!");
-    *state = State::Running;
-    input::init();
-}
-
-pub fn frameloop(state: &mut State) {
-    loop {
-        match state {
-            State::Quitting => break,
-            _ => (),
+impl Application {
+    pub fn new() -> Application {
+        input::init();
+        Application {
+            window: Window::new()
         }
-        input::update(state);
-        println!("DumDi");
     }
 }
-pub fn cleanup() {
-    println!("Farewell cruel world!");
+
+pub fn frameloop(app: &mut Application) {
+    input::update(app);
 }
 
-pub fn quit(state: &mut State) {
-    *state = State::Quitting;
+pub fn cleanup() {
+    println!("Farewell cruel world!");
 }
