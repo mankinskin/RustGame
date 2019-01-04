@@ -7,26 +7,42 @@ pub fn init() {
 
 }
 
-fn handle_key_press(key: winit::ScanCode) -> winit::ControlFlow {
-    println!("Pressed {}", key);
-    winit::ControlFlow::Continue
+pub fn update(event: winit::Event) -> winit::ControlFlow {
+    match event {
+        winit::Event::WindowEvent {
+            event,
+            ..
+        } => handle_window_event(event),
+        _  => winit::ControlFlow::Continue
+    }
 }
 
-fn handle_key_release(key: winit::ScanCode) -> winit::ControlFlow {
-    println!("Released {}", key);
+struct Key {
+    pub id: winit::VirtualKeyCode,
+    pub state: winit::ElementState,
+    pub modifiers: winit::ModifiersState
+}
+
+fn handle_key(key: Key) -> winit::ControlFlow {
+    println!("{:?} {:?}", key.state, key.id);
     winit::ControlFlow::Continue
 }
 
 fn handle_keyboard_input(input: winit::KeyboardInput) -> winit::ControlFlow {
     match input {
         winit::KeyboardInput {
-            scancode,
-            state: winit::ElementState::Pressed,
-            .. } => handle_key_press(scancode),
+            virtual_keycode: None,
+            ..
+        } => winit::ControlFlow::Continue,
         winit::KeyboardInput {
-            scancode,
-            state: winit::ElementState::Released,
-            .. } => handle_key_release(scancode)
+            virtual_keycode: Some(keycode),
+            state,
+            modifiers, ..
+        } => handle_key(Key {
+                            id: keycode,
+                            state: state,
+                            modifiers: modifiers
+                        })
     }
 }
 
@@ -41,12 +57,3 @@ fn handle_window_event(event: winit::WindowEvent) -> winit::ControlFlow {
     }
 }
 
-pub fn update(event: winit::Event) -> winit::ControlFlow {
-    match event {
-        winit::Event::WindowEvent {
-            event,
-            ..
-        } => handle_window_event(event),
-        _  => winit::ControlFlow::Continue
-    }
-}
