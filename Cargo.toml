@@ -7,3 +7,4 @@ authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
 
 [dependencies]
 winit = "0.17.*"
+vulkano = "0.11.*"
