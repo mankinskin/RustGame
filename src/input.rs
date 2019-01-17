@@ -25,7 +25,13 @@ struct Key {
 
 fn handle_key(key: Key) -> winit::ControlFlow {
     println!("{:?} {:?}", key.state, key.id);
-    winit::ControlFlow::Continue
+    match key {
+        Key {
+            id: winit::VirtualKeyCode::Escape,
+            state: winit::ElementState::Pressed,
+            .. } => winit::ControlFlow::Break,
+        _ => winit::ControlFlow::Continue
+    }
 }
 
 fn handle_keyboard_input(input: winit::KeyboardInput) -> winit::ControlFlow {
