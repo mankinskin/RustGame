@@ -1,5 +1,7 @@
 /*
  * core.rs
+ * The core functionality of the application.
+ * Kicking everything off and calling the last function
  */
 use input;
 use winit;
@@ -36,7 +38,6 @@ pub struct Application {
 
 impl Application {
     pub fn new(vinstance: &'static Arc<Instance>) -> Application {
-        input::init();
         let events_loop = EventsLoop::new();
         let surface = WindowBuilder::new().build_vk_surface(&events_loop, vinstance.clone()).unwrap();
         let pdev = vulkan::new_physical_device(&vinstance);

@@ -2,18 +2,15 @@
  * input.rs
  */
 extern crate winit;
+use winit::{Event, ControlFlow};
 
-pub fn init() {
-
-}
-
-pub fn update(event: winit::Event) -> winit::ControlFlow {
+pub fn update(event: Event) -> ControlFlow {
     match event {
-        winit::Event::WindowEvent {
+        Event::WindowEvent {
             event,
             ..
         } => handle_window_event(event),
-        _  => winit::ControlFlow::Continue
+        _  => ControlFlow::Continue
     }
 }
 
@@ -23,23 +20,23 @@ struct Key {
     pub modifiers: winit::ModifiersState
 }
 
-fn handle_key(key: Key) -> winit::ControlFlow {
+fn handle_key(key: Key) -> ControlFlow {
     println!("{:?} {:?}", key.state, key.id);
     match key {
         Key {
             id: winit::VirtualKeyCode::Escape,
             state: winit::ElementState::Pressed,
-            .. } => winit::ControlFlow::Break,
-        _ => winit::ControlFlow::Continue
+            .. } => ControlFlow::Break,
+        _ => ControlFlow::Continue
     }
 }
 
-fn handle_keyboard_input(input: winit::KeyboardInput) -> winit::ControlFlow {
+fn handle_keyboard_input(input: winit::KeyboardInput) -> ControlFlow {
     match input {
         winit::KeyboardInput {
             virtual_keycode: None,
             ..
-        } => winit::ControlFlow::Continue,
+        } => ControlFlow::Continue,
         winit::KeyboardInput {
             virtual_keycode: Some(keycode),
             state,
@@ -52,14 +49,14 @@ fn handle_keyboard_input(input: winit::KeyboardInput) -> winit::ControlFlow {
     }
 }
 
-fn handle_window_event(event: winit::WindowEvent) -> winit::ControlFlow {
+fn handle_window_event(event: winit::WindowEvent) -> ControlFlow {
     match event {
         winit::WindowEvent::CloseRequested => winit::ControlFlow::Break,
         winit::WindowEvent::KeyboardInput {
             input,
             ..
         } => handle_keyboard_input(input),
-        _ => winit::ControlFlow::Continue
+        _ => ControlFlow::Continue
     }
 }
 
