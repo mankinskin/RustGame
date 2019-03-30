@@ -9,7 +9,7 @@ extern crate image;
 #[macro_use]
 extern crate lazy_static;
 extern crate voodoo;
-extern crate winit;
+extern crate voodoo_winit;
 
 mod app;
 mod input;

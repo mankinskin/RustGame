@@ -6,8 +6,8 @@ authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
 [features]
 
 [dependencies]
-winit = "0.18.*"
 voodoo = "*"
+voodoo_winit = "*"
 
 image = "0.21.*"
 lazy_static = "1.2.*"

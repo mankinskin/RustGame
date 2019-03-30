@@ -4,17 +4,14 @@
  * Kicking everything off and calling the last function
  */
 use input;
-use winit;
 
 use std::ffi::CString;
 
+use std::ops::Drop;
 use std::string::String;
 
-use winit::{WindowBuilder, EventsLoop};
-use voodoo::{Loader, Instance, ApplicationInfo};
-
-
-type Window = (winit::Window, EventsLoop);
+use voodoo::{ApplicationInfo, Instance, Loader, SurfaceKhr};
+use voodoo_winit::winit::{ControlFlow, EventsLoop, Window, WindowBuilder};
 
 lazy_static! {
     pub static ref APP_NAME: CString = CString::new("My App").unwrap();
@@ -23,7 +20,9 @@ lazy_static! {
 pub struct App {
     pub info: ApplicationInfo<'static>,
     pub instance: Instance,
+    pub events_loop: EventsLoop,
     pub window: Window,
+    pub surface: SurfaceKhr,
 }
 
 impl App {
@@ -32,14 +31,14 @@ impl App {
         Instance::builder()
             .application_info(info)
             .enabled_extensions(&loader.enumerate_instance_extension_properties().unwrap())
-            .build(loader).unwrap()
+            .build(loader)
+            .unwrap()
     }
-    fn init_window(name: String) -> Window {
-        let events_loop = EventsLoop::new();
-        let window = WindowBuilder::new()
+    fn init_window(name: String, events_loop: &EventsLoop) -> Window {
+        WindowBuilder::new()
             .with_title(name)
-            .build(&events_loop).unwrap();
-        (window, events_loop)
+            .build(events_loop)
+            .unwrap()
     }
 
     fn init_info(name: &'static CString) -> ApplicationInfo<'static> {
@@ -49,39 +48,52 @@ impl App {
             .api_version((1, 0, 0))
             .build()
     }
+
     pub fn new() -> App {
+        let app_name = APP_NAME.to_str().unwrap().to_string();
         let info = Self::init_info(&APP_NAME);
         let instance = Self::init_instance(&info);
+        let events_loop = EventsLoop::new();
+        let window = Self::init_window(app_name, &events_loop);
+        let surface = voodoo_winit::create_surface(instance.clone(), &window).unwrap();
+
         App {
             info,
             instance,
-            window: Self::init_window(APP_NAME.to_str().unwrap().to_string()),
+            events_loop,
+            window,
+            surface,
         }
     }
 
     pub fn frameloop(&mut self) {
         let mut done = false;
         loop {
-            self.window.1.poll_events(|ev| {
-                match input::update(ev) {
-                    winit::ControlFlow::Break => done = true,
-                    _ => ()
-                }
+            self.events_loop.poll_events(|ev| match input::update(ev) {
+                ControlFlow::Break => done = true,
+                _ => (),
             });
-            if done { break; }
+            if done {
+                break;
+            }
         }
     }
 }
-    //pub fn with_title(&mut self, title: Cstring) -> App {
-    //    self.APP_NAME = title;
-    //    self
-    //}
 
-    //pub fn print_info(&self) {
-    //    println!("Using Device: {} (type: {:?})",
-    //             self.device.physical_device().name(), self.device.physical_device().ty());
-    //}
+impl Drop for App {
+    fn drop(&mut self) {
+        println!("Goodbye.");
+    }
+}
+//pub fn with_title(&mut self, title: Cstring) -> App {
+//    self.APP_NAME = title;
+//    self
+//}
 
+//pub fn print_info(&self) {
+//    println!("Using Device: {} (type: {:?})",
+//             self.device.physical_device().name(), self.device.physical_device().ty());
+//}
 
 //fn surface_get_dimensions(surface: &Arc<Surface<winit::Window>>) -> [u32; 2] {
 //    if let Some(dimensions) = surface.window().get_inner_size() {
@@ -115,4 +127,3 @@ impl App {
 //        ) as Arc<FramebufferAbstract + Send + Sync>
 //    }).collect::<Vec<_>>()
 //}
-

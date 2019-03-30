@@ -1,62 +1,58 @@
 /*
  * input.rs
  */
-extern crate winit;
-use winit::{Event, ControlFlow};
+use voodoo_winit::winit::{
+    ControlFlow, ElementState, Event, KeyboardInput, ModifiersState, VirtualKeyCode, WindowEvent,
+};
 
 pub fn update(event: Event) -> ControlFlow {
     match event {
-        Event::WindowEvent {
-            event,
-            ..
-        } => handle_window_event(event),
-        _  => ControlFlow::Continue
+        Event::WindowEvent { event, .. } => handle_window_event(event),
+        _ => ControlFlow::Continue,
     }
 }
 
 struct Key {
-    pub id: winit::VirtualKeyCode,
-    pub state: winit::ElementState,
-    pub modifiers: winit::ModifiersState
+    pub id: VirtualKeyCode,
+    pub state: ElementState,
+    pub modifiers: ModifiersState,
 }
 
 fn handle_key(key: Key) -> ControlFlow {
     println!("{:?} {:?}", key.state, key.id);
     match key {
         Key {
-            id: winit::VirtualKeyCode::Escape,
-            state: winit::ElementState::Pressed,
-            .. } => ControlFlow::Break,
-        _ => ControlFlow::Continue
+            id: VirtualKeyCode::Escape,
+            state: ElementState::Pressed,
+            ..
+        } => ControlFlow::Break,
+        _ => ControlFlow::Continue,
     }
 }
 
-fn handle_keyboard_input(input: winit::KeyboardInput) -> ControlFlow {
+fn handle_keyboard_input(input: KeyboardInput) -> ControlFlow {
     match input {
-        winit::KeyboardInput {
+        KeyboardInput {
             virtual_keycode: None,
             ..
         } => ControlFlow::Continue,
-        winit::KeyboardInput {
+        KeyboardInput {
             virtual_keycode: Some(keycode),
             state,
-            modifiers, ..
-        } => handle_key(Key {
-                            id: keycode,
-                            state: state,
-                            modifiers: modifiers
-                        })
-    }
-}
-
-fn handle_window_event(event: winit::WindowEvent) -> ControlFlow {
-    match event {
-        winit::WindowEvent::CloseRequested => winit::ControlFlow::Break,
-        winit::WindowEvent::KeyboardInput {
-            input,
+            modifiers,
             ..
-        } => handle_keyboard_input(input),
-        _ => ControlFlow::Continue
+        } => handle_key(Key {
+            id: keycode,
+            state: state,
+            modifiers: modifiers,
+        }),
     }
 }
 
+fn handle_window_event(event: WindowEvent) -> ControlFlow {
+    match event {
+        WindowEvent::Closed => ControlFlow::Break,
+        WindowEvent::KeyboardInput { input, .. } => handle_keyboard_input(input),
+        _ => ControlFlow::Continue,
+    }
+}
