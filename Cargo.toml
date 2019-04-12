@@ -6,8 +6,13 @@ authors = ["Linus Behrbohm <linusbehrbohm@web.de>"]
 [features]
 
 [dependencies]
-voodoo = "*"
-voodoo_winit = "*"
-
+voodoo = "0.3.1"
+voodoo_winit = "0.1.1"
+winit = "0.10.*"
 image = "0.21.*"
 lazy_static = "1.2.*"
+smallvec = "0.4.5"
+cgmath = "0.17.0"
+ordered-float = "1.0.2"
+tobj = "0.1.7"
+

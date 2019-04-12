@@ -5,19 +5,23 @@
 //mod input;
 
 extern crate image;
+extern crate smallvec;
+extern crate ordered_float;
+extern crate cgmath;
+extern crate tobj;
 
 #[macro_use]
 extern crate lazy_static;
 extern crate voodoo;
 extern crate voodoo_winit;
+extern crate winit;
 
 mod app;
 mod input;
+mod vulkan;
 
 fn main() {
-    let mut app = app::App::new();
+    let app = app::App::new();
 
-    app.frameloop();
-    //app.print_info();
-    //core::frameloop(&mut app);
+    app.unwrap().main_loop().unwrap();
 }
