@@ -1,1 +1,1 @@
-# RustGame
+# rust_game
