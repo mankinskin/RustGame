@@ -1,2 +1,7 @@
 /target
 **/*.rs.bk
+Cargo.lock
+main
+.vscode
+tags
+rusty-tags.vi
