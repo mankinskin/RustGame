@@ -5,13 +5,13 @@
  */
 
 use vulkan;
-use vulkan::{SwapchainComponents};
 
 use voodoo_winit::winit::{Window, EventsLoop};
 use voodoo::{Result as VdResult, ApplicationInfo, Instance, SurfaceKhr, Extent2d, Device,
-            DescriptorSetLayout, DescriptorSet, PipelineLayout, CommandPool, DescriptorPool,
-            SwapchainKhr, Sampler, CommandBuffer, Buffer, DeviceMemory,
-            CommandBufferHandle, Image, ImageView};
+            DescriptorSetLayout, DescriptorSet, PipelineLayout, CommandPool, DescriptorPool, ErrorKind,
+            SwapchainKhr, Sampler, CommandBuffer, Buffer, DeviceMemory, PipelineStageFlags, SubmitInfo,
+            PresentInfoKhr, CommandBufferHandle, Image, ImageView, CallResult, Semaphore, SemaphoreCreateFlags,
+            RenderPass, GraphicsPipeline, Framebuffer};
 
 use smallvec::SmallVec;
 
@@ -35,13 +35,64 @@ const INDICES: [u32; 12] = [
 
 // Resource Paths
 // static MODEL_PATH: &str = "/src/shared_assets/models/chalet.obj";
+
 static VERT_SHADER_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"),
     "/shaders/vert.spv");
 static FRAG_SHADER_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"),
     "/shaders/frag.spv");
-
 static TEXTURE_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"),
     "/images/hello.jpg");
+
+fn window_extent(window: &Window) -> Extent2d {
+        let dims = window.get_inner_size().unwrap();
+        Extent2d::builder()
+            .height(dims.1 as u32)
+            .width(dims.0 as u32)
+            .build()
+}
+
+pub struct SwapchainComponents {
+    pub image_views: Vec<ImageView>,
+    pub render_pass: RenderPass,
+    pub graphics_pipeline: GraphicsPipeline,
+    pub framebuffers: Vec<Framebuffer>,
+}
+
+pub fn create_swapchain_components(device: &Device,
+                                   swapchain: &SwapchainKhr,
+                                   pipeline_layout: &PipelineLayout,
+                                   depth_image_view: &ImageView,
+                                   vert_shader_code: &Vec<u32>,
+                                   frag_shader_code: &Vec<u32>,
+                                   extent: Extent2d) -> SwapchainComponents {
+
+
+    let image_views = vulkan::create_image_views(swapchain).unwrap();
+
+    let render_pass = vulkan::create_render_pass(device.clone(),
+                                                 swapchain.image_format()).unwrap();
+
+    let framebuffers = vulkan::create_framebuffers(&device,
+                                                   &render_pass,
+                                                   &image_views,
+                                                   depth_image_view,
+                                                   extent.clone()).unwrap();
+
+    let graphics_pipeline =
+        vulkan::create_graphics_pipeline(device.clone(),
+                                         pipeline_layout,
+                                         &render_pass,
+                                         extent.clone(),
+                                         vert_shader_code,
+                                         frag_shader_code).unwrap();
+
+    SwapchainComponents {
+        image_views,
+        render_pass,
+        graphics_pipeline,
+        framebuffers,
+    }
+}
 
 pub struct Presenter {
     pub instance: Instance,
@@ -58,7 +109,7 @@ pub struct Presenter {
     pub uniform_buffer: Buffer,
     pub uniform_buffer_memory: DeviceMemory,
     pub swapchain: Option<SwapchainKhr>,
-    pub swapchain_components: Option<vulkan::SwapchainComponents>,
+    pub swapchain_components: Option<SwapchainComponents>,
     pub command_buffers: Option<SmallVec<[CommandBuffer; 16]>>,
     pub command_buffer_handles: Option<SmallVec<[CommandBufferHandle; 16]>>,
     vert_shader_code: Vec<u32>,
@@ -72,13 +123,11 @@ pub struct Presenter {
     pub vertex_buffer_memory: DeviceMemory,
     index_buffer: Buffer,
     pub index_buffer_memory: DeviceMemory,
-}
-fn window_extent(window: &Window) -> Extent2d {
-        let dims = window.get_inner_size().unwrap();
-        Extent2d::builder()
-            .height(dims.1 as u32)
-            .width(dims.0 as u32)
-            .build()
+    image_available_semaphore: Semaphore,
+    render_finished_semaphore: Semaphore,
+    pub depth_image: Image,
+    pub depth_image_memory: DeviceMemory,
+    pub depth_image_view: ImageView,
 }
 
 impl Presenter {
@@ -135,8 +184,6 @@ impl Presenter {
                                                  Some(extent.clone()),
                                                  None).unwrap();
 
-        let image_views = vulkan::create_image_views(&swapchain).unwrap();
-
         // RESOURCES
 
         let vert_shader_code = voodoo::util::read_spir_v_file(VERT_SHADER_PATH).unwrap();
@@ -162,28 +209,20 @@ impl Presenter {
                                         &command_pool,
                                         &indices).unwrap();
         // -- End Resources
-        let render_pass = vulkan::create_render_pass(device.clone(), swapchain.image_format()).unwrap();
 
-        let graphics_pipeline = vulkan::create_graphics_pipeline(device.clone(), &pipeline_layout,
-            &render_pass, extent.clone(), &vert_shader_code, &frag_shader_code).unwrap();
-
-
-        let framebuffers = vulkan::create_framebuffers(&device, &render_pass,
-            &image_views, &depth_image_view, extent.clone()).unwrap();
+        let swapchain_components =
+            create_swapchain_components(&device,
+                                        &swapchain,
+                                        &pipeline_layout,
+                                        &depth_image_view,
+                                        &vert_shader_code,
+                                        &frag_shader_code,
+                                        extent.clone());
 
         let texture_image_view =
             vulkan::create_texture_image_view(device.clone(),
             &texture_image).unwrap();
 
-        let swapchain_components = SwapchainComponents {
-            image_views,
-            render_pass,
-            graphics_pipeline,
-            depth_image,
-            depth_image_memory,
-            depth_image_view,
-            framebuffers,
-        };
         let descriptor_sets =
             vulkan::create_descriptor_sets(&descriptor_set_layout,
                                            &descriptor_pool,
@@ -208,6 +247,12 @@ impl Presenter {
         let command_buffer_handles: SmallVec<[CommandBufferHandle; 16]> =
             command_buffers.iter().map(|cb| cb.handle()).collect();
 
+
+        let image_available_semaphore = Semaphore::new(device.clone(),
+                                                       SemaphoreCreateFlags::empty()).unwrap();
+
+        let render_finished_semaphore = Semaphore::new(device.clone(),
+                                                       SemaphoreCreateFlags::empty()).unwrap();
 
         Presenter {
             instance,
@@ -238,6 +283,11 @@ impl Presenter {
             vertex_buffer_memory,
             index_buffer,
             index_buffer_memory,
+            image_available_semaphore,
+            render_finished_semaphore,
+            depth_image,
+            depth_image_memory,
+            depth_image_view,
         }
     }
     pub fn extent(&self) -> Extent2d {
@@ -250,7 +300,7 @@ impl Presenter {
         self.command_buffers = None;
     }
 
-    pub fn recreate_swapchain(&mut self) -> VdResult<()> {
+    fn recreate_swapchain(&mut self) -> VdResult<()> {
         self.device.wait_idle();
 
         let extent = self.extent();
@@ -261,27 +311,22 @@ impl Presenter {
 
         self.cleanup_swapchain();
 
-        let image_views = vulkan::create_image_views(&swapchain).unwrap();
-        let render_pass = vulkan::create_render_pass(self.device.clone(),
-            swapchain.image_format()).unwrap();
+        let swapchain_components =
+            create_swapchain_components(&self.device,
+                                        &swapchain,
+                                        &self.pipeline_layout,
+                                        &self.depth_image_view,
+                                        &self.vert_shader_code,
+                                        &self.frag_shader_code,
+                                        extent.clone());
 
-        let graphics_pipeline = vulkan::create_graphics_pipeline(self.device.clone(),
-            &self.pipeline_layout, &render_pass,
-            extent.clone(), &self.vert_shader_code, &self.frag_shader_code).unwrap();
-
-        let (depth_image, depth_image_memory, depth_image_view) = vulkan::create_depth_resources(
-            &self.device, &self.command_pool, extent.clone()).unwrap();
-
-        let framebuffers = vulkan::create_framebuffers(&self.device,
-            &render_pass, &image_views,
-            &depth_image_view, extent.clone()).unwrap();
 
         let command_buffers =
             vulkan::create_command_buffers(&self.device,
                                            &self.command_pool,
-                                           &render_pass,
-                                           &graphics_pipeline,
-                                           &framebuffers,
+                                           &swapchain_components.render_pass,
+                                           &swapchain_components.graphics_pipeline,
+                                           &swapchain_components.framebuffers,
                                            &extent,
                                            &self.vertex_buffer,
                                            &self.index_buffer,
@@ -293,19 +338,67 @@ impl Presenter {
         let command_buffer_handles = command_buffers.iter().map(|cb| cb.handle()).collect();
 
         self.swapchain = Some(swapchain);
-        self.swapchain_components = Some(vulkan::SwapchainComponents {
-            image_views: image_views,
-            render_pass: render_pass,
-            graphics_pipeline: graphics_pipeline,
-            depth_image,
-            depth_image_memory,
-            depth_image_view,
-            framebuffers: framebuffers,
-        });
+        self.swapchain_components = Some(swapchain_components);
         self.command_buffers = Some(command_buffers);
         self.command_buffer_handles = Some(command_buffer_handles);
 
         Ok(())
     }
 
+    pub fn draw_frame(&mut self) -> VdResult<()> {
+        let acquire_result =
+            self.swapchain.as_ref().unwrap()
+                          .acquire_next_image_khr(u64::max_value(),
+                                                  Some(&self.image_available_semaphore),
+                                                  None);
+        let image_index = match acquire_result {
+            Ok(idx) => idx,
+            Err(res) => {
+                if let ErrorKind::ApiCall(call_res, _fn_name) = res.kind {
+                    if call_res == CallResult::ErrorOutOfDateKhr {
+                        self.recreate_swapchain().unwrap();
+                        return Ok(());
+                    } else {
+                        panic!("Unable to present swap chain image");
+                    }
+                } else {
+                    panic!("Unable to present swap chain image");
+                }
+            }
+        };
+
+        let wait_semaphores = [self.image_available_semaphore.handle()];
+        let wait_stages = PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT;
+        let signal_semaphores = [self.render_finished_semaphore.handle()];
+        let command_buffer_handles =
+            [self.command_buffer_handles.as_ref().unwrap()
+                                        .get(image_index as usize).unwrap()
+                                        .clone()];
+
+        let submit_info =
+            SubmitInfo::builder()
+                .wait_semaphores(&wait_semaphores[..])
+                .wait_dst_stage_mask(&wait_stages)
+                .command_buffers(&command_buffer_handles[..])
+                .signal_semaphores(&signal_semaphores[..])
+                .build();
+
+        let queue = self.device.queue(0).unwrap();
+        queue.submit(&[submit_info], None).unwrap();
+
+        let swapchains = [self.swapchain.as_ref().unwrap().handle()];
+        let image_indices = [image_index];
+
+        let present_info =
+            PresentInfoKhr::builder()
+                .wait_semaphores(&signal_semaphores[..])
+                .swapchains(&swapchains[..])
+                .image_indices(&image_indices)
+                .build();
+
+        queue.present_khr(&present_info).unwrap();
+        queue.wait_idle();
+
+        Ok(())
+    }
 }

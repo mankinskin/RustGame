@@ -15,31 +15,11 @@ use std::cmp;
 use smallvec::SmallVec;
 use ordered_float::OrderedFloat;
 
-use voodoo::{vks, Result as VdResult, Instance, Device, SurfaceKhr,
-    SwapchainKhr, ImageView, PipelineLayout, RenderPass, GraphicsPipeline, Framebuffer,
-    CommandPool, Buffer, DeviceMemory, DescriptorSetLayout, DescriptorPool, Image,
-    Sampler, Loader, SwapchainSupportDetails, PhysicalDevice, PhysicalDeviceFeatures, ShaderModule,
-    QueueFlags, Format, ApplicationInfo, DeviceQueueCreateInfo, SurfaceFormatKhr, ColorSpaceKhr,
-    PresentModeKhr, SurfaceCapabilitiesKhr, Extent2d, ImageUsageFlags, CompositeAlphaFlagsKhr,
-    SharingMode, ImageViewType, ComponentMapping, ImageSubresourceRange, ImageAspectFlags,
-    ImageTiling, FormatFeatureFlags, AttachmentDescription, SampleCountFlags, AttachmentLoadOp,
-    AttachmentStoreOp, ImageLayout, AttachmentReference, SubpassDescription, PipelineBindPoint,
-    SubpassDependency, PipelineStageFlags, AccessFlags, DescriptorSetLayoutBinding, DescriptorType,
-    ShaderStageFlags, DescriptorPoolSize, DescriptorSet, DescriptorBufferInfo, DescriptorImageInfo,
-    WriteDescriptorSet, PipelineShaderStageCreateInfo, PipelineVertexInputStateCreateInfo,
-    PipelineInputAssemblyStateCreateInfo, PrimitiveTopology, Viewport, Rect2d, Offset2d,
-    PipelineViewportStateCreateInfo, PipelineRasterizationStateCreateInfo, PolygonMode,
-    CullModeFlags, FrontFace, PipelineMultisampleStateCreateInfo, StencilOpState, StencilOp,
-    CompareOp, PipelineDepthStencilStateCreateInfo, PipelineColorBlendAttachmentState, BlendFactor,
-    BlendOp, ColorComponentFlags, PipelineColorBlendStateCreateInfo, LogicOp, CommandBuffer,
-    CommandBufferLevel, CommandBufferUsageFlags, SubmitInfo, ImageMemoryBarrier, DependencyFlags,
-    ImageSubresourceLayers, BufferImageCopy, Offset3d, Extent3d, DeviceSize, BufferCopy,
-    BufferUsageFlags, MemoryPropertyFlags, MemoryMapFlags, ImageType, Filter, SamplerMipmapMode,
-    SamplerAddressMode, BorderColor, ClearValue, ClearColorValue, RenderPassBeginInfo,
-    SubpassContents, IndexType, VertexInputBindingDescription, VertexInputRate,
-    VertexInputAttributeDescription};
+use voodoo::*;
+use voodoo::{Result as VdResult};
 
-use voodoo_winit::winit::{Window, WindowBuilder, EventsLoop};
+use voodoo_winit::winit::*;
+use voodoo_winit::winit::{Window, WindowBuilder};
 
 #[cfg(debug_assertions)]
 pub const ENABLE_VALIDATION_LAYERS: bool = true;
@@ -143,23 +123,6 @@ pub struct UniformBufferObject {
     pub view: [[f32; 4]; 4],
     pub proj: [[f32; 4]; 4],
 }
-
-
-const VERTICES: [Vertex; 8] =  [
-    Vertex { pos: [-0.5, -0.5, 0.25], color: [1.0, 0.0, 0.0], tex_coord: [1.0, 0.0]},
-    Vertex { pos: [0.5, -0.5, 0.25], color: [0.0, 1.0, 0.0], tex_coord: [0.0, 0.0] },
-    Vertex { pos: [0.5, 0.5, 0.25], color: [0.0, 0.0, 1.0], tex_coord: [0.0, 1.0] },
-    Vertex { pos: [-0.5, 0.5, 0.25], color: [1.0, 1.0, 1.0], tex_coord: [1.0, 1.0] },
-    Vertex { pos: [-0.5, -0.5, -0.25], color: [1.0, 0.0, 0.0], tex_coord: [1.0, 0.0]},
-    Vertex { pos: [0.5, -0.5, -0.25], color: [0.0, 1.0, 0.0], tex_coord: [0.0, 0.0] },
-    Vertex { pos: [0.5, 0.5, -0.25], color: [0.0, 0.0, 1.0], tex_coord: [0.0, 1.0] },
-    Vertex { pos: [-0.5, 0.5, -0.25], color: [1.0, 1.0, 1.0], tex_coord: [1.0, 1.0] },
-];
-
-const INDICES: [u32; 12] = [
-    0, 1, 2, 2, 3, 0,
-    4, 5, 6, 6, 7, 4
-];
 
 pub fn init_instance(info: &ApplicationInfo<'static>) -> VdResult<Instance> {
     let loader = Loader::new().unwrap();

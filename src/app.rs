@@ -17,9 +17,7 @@ use std::time;
 
 use cgmath::{Matrix3, Matrix4};
 
-use voodoo::{Result as VdResult, ApplicationInfo, Semaphore,
-    SemaphoreCreateFlags, MemoryMapFlags, ErrorKind, CallResult,
-    PipelineStageFlags, SubmitInfo, PresentInfoKhr};
+use voodoo::{Result as VdResult, ApplicationInfo, MemoryMapFlags};
 
 
 lazy_static! {
@@ -30,8 +28,6 @@ lazy_static! {
 pub struct App {
     pub info: ApplicationInfo<'static>,
     presenter: Presenter,
-    image_available_semaphore: Semaphore,
-    render_finished_semaphore: Semaphore,
     start_time: time::Instant,
 }
 
@@ -50,11 +46,6 @@ impl App {
 
         let presenter = Presenter::new(info.clone());
 
-        let image_available_semaphore = Semaphore::new(presenter.device.clone(),
-            SemaphoreCreateFlags::empty()).unwrap();
-
-        let render_finished_semaphore = Semaphore::new(presenter.device.clone(),
-            SemaphoreCreateFlags::empty()).unwrap();
 
         let start_time = time::Instant::now();
 
@@ -62,8 +53,6 @@ impl App {
         Ok(App {
             info,
             presenter: presenter,
-            image_available_semaphore,
-            render_finished_semaphore,
             start_time,
         })
     }
@@ -105,59 +94,9 @@ impl App {
         Ok(())
     }
 
-    fn draw_frame(&mut self) -> VdResult<()> {
-        let acquire_result = self.presenter.swapchain.as_ref().unwrap().acquire_next_image_khr(
-            u64::max_value(), Some(&self.image_available_semaphore), None);
-        let image_index = match acquire_result {
-            Ok(idx) => idx,
-            Err(res) => {
-                if let ErrorKind::ApiCall(call_res, _fn_name) = res.kind {
-                    if call_res == CallResult::ErrorOutOfDateKhr {
-                        self.presenter.recreate_swapchain().unwrap();
-                        return Ok(());
-                    } else {
-                        panic!("Unable to present swap chain image");
-                    }
-                } else {
-                    panic!("Unable to present swap chain image");
-                }
-            }
-        };
-
-        let wait_semaphores = [self.image_available_semaphore.handle()];
-        let wait_stages = PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT;
-        let signal_semaphores = [self.render_finished_semaphore.handle()];
-        let command_buffer_handles = [self.presenter.command_buffer_handles.as_ref().unwrap()
-            .get(image_index as usize).unwrap().clone()];
-
-        let submit_info = SubmitInfo::builder()
-            .wait_semaphores(&wait_semaphores[..])
-            .wait_dst_stage_mask(&wait_stages)
-            .command_buffers(&command_buffer_handles[..])
-            .signal_semaphores(&signal_semaphores[..])
-            .build();
-
-        let queue = self.presenter.device.queue(0).unwrap();
-        queue.submit(&[submit_info], None).unwrap();
-
-        let swapchains = [self.presenter.swapchain.as_ref().unwrap().handle()];
-        let image_indices = [image_index];
-
-        let present_info = PresentInfoKhr::builder()
-            .wait_semaphores(&signal_semaphores[..])
-            .swapchains(&swapchains[..])
-            .image_indices(&image_indices)
-            .build();
-
-        queue.present_khr(&present_info).unwrap();
-        queue.wait_idle();
-
-        Ok(())
-    }
 
     pub fn main_loop(&mut self) -> VdResult<()> {
         let mut exit = false;
-        let mut recreate_swap = false;
 
         loop {
             self.presenter.events_loop.poll_events(|event| {
@@ -168,14 +107,10 @@ impl App {
                 }
             });
 
-            if recreate_swap {
-                self.presenter.recreate_swapchain().unwrap();
-                recreate_swap = false;
-            };
             if exit { break; }
 
             self.update_uniform_buffer().unwrap();
-            self.draw_frame().unwrap();
+            self.presenter.draw_frame().unwrap();
         }
 
         self.presenter.device.wait_idle();
