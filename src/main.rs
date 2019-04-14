@@ -19,9 +19,9 @@ extern crate winit;
 mod app;
 mod input;
 mod vulkan;
+mod presenter;
 
 fn main() {
-    let app = app::App::new();
-
-    app.unwrap().main_loop().unwrap();
+    app::App::new().unwrap()
+        .main_loop().unwrap();
 }
