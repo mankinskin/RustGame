@@ -90,37 +90,52 @@ impl Presenter {
             .to_str().unwrap().to_string();
         // Window EventsLoop
         let events_loop = EventsLoop::new();
-        let window = vulkan::init_window(window_name, &events_loop).unwrap();
+        let window = vulkan::init_window(window_name,
+                                         &events_loop).unwrap();
         let extent = window_extent(&window);
 
         // Vulkan instance object
         let instance = vulkan::init_instance(&info).unwrap();
 
         // Window Surface
-        let surface = voodoo_winit::create_surface(instance.clone(), &window).unwrap();
+        let surface = voodoo_winit::create_surface(instance.clone(),
+                                                   &window).unwrap();
 
         // A physical Device (first detected)
-        let physical_device = vulkan::choose_physical_device(&instance, &surface).unwrap();
+        let physical_device = vulkan::choose_physical_device(&instance,
+                                                             &surface).unwrap();
         // virtual Device
-        let device = vulkan::create_device(&surface, physical_device).unwrap();
-        // Surface swapchain
-        let swapchain = vulkan::create_swapchain(surface.clone(), device.clone(), Some(extent.clone()), None).unwrap();
+        let device = vulkan::create_device(&surface,
+                                           physical_device).unwrap();
+
+        let command_pool = vulkan::create_command_pool(device.clone(),
+                                                       &surface).unwrap();
+
+        let descriptor_pool = vulkan::create_descriptor_pool(device.clone()).unwrap();
 
         let descriptor_set_layout = vulkan::create_descriptor_set_layout(device.clone()).unwrap();
 
         let pipeline_layout = vulkan::create_pipeline_layout(device.clone(),
-            Some(&descriptor_set_layout)).unwrap();
-
-        let command_pool = vulkan::create_command_pool(device.clone(), &surface).unwrap();
-
+                                                             Some(&descriptor_set_layout)).unwrap();
         let texture_sampler = vulkan::create_texture_sampler(device.clone()).unwrap();
 
-        let descriptor_pool = vulkan::create_descriptor_pool(device.clone()).unwrap();
+        let (depth_image, depth_image_memory, depth_image_view) =
+            vulkan::create_depth_resources(&device,
+                                           &command_pool,
+                                           extent.clone()).unwrap();
+
+        let (uniform_buffer, uniform_buffer_memory) =
+            vulkan::create_uniform_buffer(&device,
+                                          &command_pool,
+                                          extent.clone()).unwrap();
+
+        // Surface swapchain
+        let swapchain = vulkan::create_swapchain(surface.clone(),
+                                                 device.clone(),
+                                                 Some(extent.clone()),
+                                                 None).unwrap();
 
         let image_views = vulkan::create_image_views(&swapchain).unwrap();
-
-        let (depth_image, depth_image_memory, depth_image_view) =
-            vulkan::create_depth_resources(&device, &command_pool, extent.clone()).unwrap();
 
         // RESOURCES
 
@@ -132,39 +147,33 @@ impl Presenter {
 
         let indices = INDICES[..].to_owned();
 
-        let (texture_image, texture_image_memory) = vulkan::create_texture_image(&device,
-            &command_pool, TEXTURE_PATH).unwrap();
+        let (texture_image, texture_image_memory) =
+            vulkan::create_texture_image(&device,
+                                         &command_pool,
+                                         TEXTURE_PATH).unwrap();
 
-        let (vertex_buffer, vertex_buffer_memory) = vulkan::create_vertex_buffer(&device, &command_pool,
-            &vertices).unwrap();
+        let (vertex_buffer, vertex_buffer_memory) =
+            vulkan::create_vertex_buffer(&device,
+                                         &command_pool,
+                                         &vertices).unwrap();
 
-        let (index_buffer, index_buffer_memory) = vulkan::create_index_buffer(&device, &command_pool,
-            &indices).unwrap();
+        let (index_buffer, index_buffer_memory) =
+            vulkan::create_index_buffer(&device,
+                                        &command_pool,
+                                        &indices).unwrap();
         // -- End Resources
         let render_pass = vulkan::create_render_pass(device.clone(), swapchain.image_format()).unwrap();
 
         let graphics_pipeline = vulkan::create_graphics_pipeline(device.clone(), &pipeline_layout,
             &render_pass, extent.clone(), &vert_shader_code, &frag_shader_code).unwrap();
 
+
         let framebuffers = vulkan::create_framebuffers(&device, &render_pass,
             &image_views, &depth_image_view, extent.clone()).unwrap();
 
-        let (uniform_buffer, uniform_buffer_memory) = vulkan::create_uniform_buffer(&device,
-            &command_pool, extent.clone()).unwrap();
-
-        let texture_image_view = vulkan::create_texture_image_view(device.clone(),
+        let texture_image_view =
+            vulkan::create_texture_image_view(device.clone(),
             &texture_image).unwrap();
-
-        let descriptor_sets = vulkan::create_descriptor_sets(&descriptor_set_layout,
-            &descriptor_pool, &uniform_buffer, &texture_image_view, &texture_sampler).unwrap();
-
-        let command_buffers = vulkan::create_command_buffers(&device, &command_pool, &render_pass,
-            &graphics_pipeline, &framebuffers, &extent,
-            &vertex_buffer, &index_buffer,
-            vertices.len() as u32, vertices.len() as u32, &pipeline_layout,
-            descriptor_sets[0].clone()).unwrap();
-
-        let command_buffer_handles: SmallVec<[CommandBufferHandle; 16]> = command_buffers.iter().map(|cb| cb.handle()).collect();
 
         let swapchain_components = SwapchainComponents {
             image_views,
@@ -175,6 +184,30 @@ impl Presenter {
             depth_image_view,
             framebuffers,
         };
+        let descriptor_sets =
+            vulkan::create_descriptor_sets(&descriptor_set_layout,
+                                           &descriptor_pool,
+                                           &uniform_buffer,
+                                           &texture_image_view,
+                                           &texture_sampler).unwrap();
+
+        let command_buffers =
+            vulkan::create_command_buffers(&device,
+                                           &command_pool,
+                                           &swapchain_components.render_pass,
+                                           &swapchain_components.graphics_pipeline,
+                                           &swapchain_components.framebuffers,
+                                           &extent,
+                                           &vertex_buffer,
+                                           &index_buffer,
+                                           vertices.len() as u32,
+                                           vertices.len() as u32,
+                                           &pipeline_layout,
+                                           descriptor_sets[0].clone()).unwrap();
+
+        let command_buffer_handles: SmallVec<[CommandBufferHandle; 16]> =
+            command_buffers.iter().map(|cb| cb.handle()).collect();
+
 
         Presenter {
             instance,
@@ -221,8 +254,10 @@ impl Presenter {
         self.device.wait_idle();
 
         let extent = self.extent();
-        let swapchain = vulkan::create_swapchain(self.surface.clone(), self.device.clone(),
-            Some(extent.clone()), self.swapchain.as_ref().take()).unwrap();
+        let swapchain = vulkan::create_swapchain(self.surface.clone(),
+                                                 self.device.clone(),
+                                                 Some(extent.clone()),
+                                                 self.swapchain.as_ref().take()).unwrap();
 
         self.cleanup_swapchain();
 
@@ -241,11 +276,19 @@ impl Presenter {
             &render_pass, &image_views,
             &depth_image_view, extent.clone()).unwrap();
 
-        let command_buffers = vulkan::create_command_buffers(&self.device, &self.command_pool,
-            &render_pass, &graphics_pipeline,
-            &framebuffers, &extent,
-            &self.vertex_buffer, &self.index_buffer, self.vertices.len() as u32,
-            self.indices.len() as u32, &self.pipeline_layout, self.descriptor_sets[0].clone()).unwrap();
+        let command_buffers =
+            vulkan::create_command_buffers(&self.device,
+                                           &self.command_pool,
+                                           &render_pass,
+                                           &graphics_pipeline,
+                                           &framebuffers,
+                                           &extent,
+                                           &self.vertex_buffer,
+                                           &self.index_buffer,
+                                           self.vertices.len() as u32,
+                                           self.indices.len() as u32,
+                                           &self.pipeline_layout,
+                                           self.descriptor_sets[0].clone()).unwrap();
 
         let command_buffer_handles = command_buffers.iter().map(|cb| cb.handle()).collect();
 

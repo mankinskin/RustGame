@@ -1,5 +1,8 @@
+/*
+ * vulkan.rs
+ * simple vulkan example using voodoo (from voodoo examples)
+ */
 #![allow(dead_code, unused_variables)]
-
 
 use std::result::Result;
 use std::mem;
@@ -56,6 +59,7 @@ macro_rules! offset_of {
         unsafe { &(*(0 as *const $ty)).$field as *const _ as u32 }
     }
 }
+
 /// The queue indices this app will use.
 #[derive(Debug, Clone, Copy)]
 struct QueueFamilyIndices {
@@ -132,7 +136,6 @@ impl PartialEq for Vertex {
 
 impl Eq for Vertex {}
 
-
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct UniformBufferObject {
@@ -166,11 +169,13 @@ pub fn init_instance(info: &ApplicationInfo<'static>) -> VdResult<Instance> {
         .build(loader)
 }
 
-pub fn init_window(name: String, events_loop: &EventsLoop) -> VdResult<Window> {
-    match WindowBuilder::new()
+pub fn init_window(name: String,
+                   events_loop: &EventsLoop) -> VdResult<Window> {
+    let window = WindowBuilder::new()
         .with_title(name)
-        .build(events_loop) {
+        .build(events_loop);
 
+    match window {
         Ok(window) => Result::<Window, voodoo::Error>::Ok(window),
         Err(_) => Result::<Window, voodoo::Error>::Err(voodoo::Error::unspecified_dimensions()),
     }
@@ -226,8 +231,8 @@ fn find_queue_families(physical_device: &PhysicalDevice, surface: &SurfaceKhr)
 /// Returns true if the specified physical device has the required features,
 /// extensions, queue families and if the supported swap chain has the correct
 /// presentation modes.
-fn device_is_suitable(physical_device: &PhysicalDevice, surface: &SurfaceKhr)
-    -> VdResult<bool> {
+fn device_is_suitable(physical_device: &PhysicalDevice,
+                      surface: &SurfaceKhr) -> VdResult<bool> {
     let device_features = physical_device.features();
 
     let extensions_supported = physical_device.verify_extension_support(
@@ -250,8 +255,8 @@ fn device_is_suitable(physical_device: &PhysicalDevice, surface: &SurfaceKhr)
 
 /// Returns a physical device from the list of available physical devices if
 /// it meets the criteria specified in the above function.
-pub fn choose_physical_device(instance: &Instance, surface: &SurfaceKhr)
-        -> VdResult<PhysicalDevice> {
+pub fn choose_physical_device(instance: &Instance,
+                              surface: &SurfaceKhr) -> VdResult<PhysicalDevice> {
     let mut preferred_device = None;
     for device in instance.physical_devices()? {
         if device_is_suitable(&device, surface)? {
@@ -266,7 +271,8 @@ pub fn choose_physical_device(instance: &Instance, surface: &SurfaceKhr)
     }
 }
 
-pub fn create_device(surface: &SurfaceKhr, physical_device: PhysicalDevice) -> VdResult<Device> {
+pub fn create_device(surface: &SurfaceKhr,
+                     physical_device: PhysicalDevice) -> VdResult<Device> {
     let queue_family_indices = find_queue_families(&physical_device, surface)?;
     let unique_queue_family_idxs: BTreeSet<u32> = [queue_family_indices.graphics_family_idx,
         queue_family_indices.present_family_idx].iter().map(|&i| i).collect();
@@ -290,8 +296,7 @@ pub fn create_device(surface: &SurfaceKhr, physical_device: PhysicalDevice) -> V
         .build(physical_device)
 }
 
-fn choose_swap_surface_format(available_formats: &[SurfaceFormatKhr])
-        -> SurfaceFormatKhr {
+fn choose_swap_surface_format(available_formats: &[SurfaceFormatKhr]) -> SurfaceFormatKhr {
     if available_formats.len() == 1 && available_formats[0].format() == Format::Undefined {
         return SurfaceFormatKhr::builder()
             .format(Format::B8G8R8A8Unorm)
@@ -313,8 +318,7 @@ fn choose_swap_surface_format(available_formats: &[SurfaceFormatKhr])
         .build()
 }
 
-fn choose_swap_present_mode(available_present_modes: &[PresentModeKhr])
-        -> PresentModeKhr {
+fn choose_swap_present_mode(available_present_modes: &[PresentModeKhr]) -> PresentModeKhr {
     let mut best_mode = PresentModeKhr::MailboxKhr;
     for &available_present_mode in available_present_modes {
         if available_present_mode == PresentModeKhr::FifoKhr {
@@ -327,7 +331,7 @@ fn choose_swap_present_mode(available_present_modes: &[PresentModeKhr])
 }
 
 fn choose_swap_extent(capabilities: &SurfaceCapabilitiesKhr,
-        window_size: Option<Extent2d>) -> Extent2d {
+                      window_size: Option<Extent2d>) -> Extent2d {
     if capabilities.current_extent().width() != u32::max_value() {
         return capabilities.current_extent().clone();
     } else {
@@ -344,8 +348,10 @@ fn choose_swap_extent(capabilities: &SurfaceCapabilitiesKhr,
     }
 }
 
-pub fn create_swapchain(surface: SurfaceKhr, device: Device, window_size: Option<Extent2d>,
-        old_swapchain: Option<&SwapchainKhr>) -> VdResult<SwapchainKhr> {
+pub fn create_swapchain(surface: SurfaceKhr,
+                        device: Device,
+                        window_size: Option<Extent2d>,
+                        old_swapchain: Option<&SwapchainKhr>) -> VdResult<SwapchainKhr> {
     let queue_family_indices = find_queue_families(device.physical_device(), &surface)?;
     let swapchain_details = SwapchainSupportDetails::new(&surface, device.physical_device())?;
     let surface_format = choose_swap_surface_format(&swapchain_details.formats);
@@ -407,8 +413,10 @@ pub fn create_image_views(swapchain: &SwapchainKhr) -> VdResult<Vec<ImageView>> 
     }).collect::<Result<Vec<_>, _>>()
 }
 
-fn find_supported_format(device: &Device, candidates: &[Format], tiling: ImageTiling,
-        features: FormatFeatureFlags) -> VdResult<Format> {
+fn find_supported_format(device: &Device,
+                         candidates: &[Format],
+                         tiling: ImageTiling,
+                         features: FormatFeatureFlags) -> VdResult<Format> {
     for &format in candidates {
         let props = device.physical_device().format_properties(format);
 
@@ -430,8 +438,9 @@ fn find_depth_format(device: &Device) -> VdResult<Format> {
         FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT)
 }
 
-pub fn create_render_pass(device: Device, swapchain_image_format: Format)
-        -> VdResult<RenderPass> {
+pub fn create_render_pass(device: Device,
+                          swapchain_image_format: Format) -> VdResult<RenderPass> {
+
     let depth_image_format = find_depth_format(&device)?;
 
     let color_attachment = AttachmentDescription::builder()
@@ -531,8 +540,10 @@ pub fn create_descriptor_pool(device: Device) -> VdResult<DescriptorPool> {
 }
 
 pub fn create_descriptor_sets(layout: &DescriptorSetLayout,
-        pool: &DescriptorPool, uniform_buffer: &Buffer, texture_image_view: &ImageView,
-        texture_sampler: &Sampler) -> VdResult<SmallVec<[DescriptorSet; 8]>> {
+                              pool: &DescriptorPool,
+                              uniform_buffer: &Buffer,
+                              texture_image_view: &ImageView,
+                              texture_sampler: &Sampler) -> VdResult<SmallVec<[DescriptorSet; 8]>> {
     let descriptor_sets = pool.allocate_descriptor_sets(&[layout.handle()])?;
 
     let buffer_info = DescriptorBufferInfo::builder()
@@ -571,8 +582,8 @@ pub fn create_descriptor_sets(layout: &DescriptorSetLayout,
     Ok(descriptor_sets)
 }
 
-pub fn create_pipeline_layout(device: Device, descriptor_set_layout: Option<&DescriptorSetLayout>)
-        -> VdResult<PipelineLayout> {
+pub fn create_pipeline_layout(device: Device,
+                              descriptor_set_layout: Option<&DescriptorSetLayout>) -> VdResult<PipelineLayout> {
     let mut layouts = SmallVec::<[_; 8]>::new();
     if let Some(dsl) = descriptor_set_layout {
         layouts.push(dsl.handle());
@@ -583,9 +594,12 @@ pub fn create_pipeline_layout(device: Device, descriptor_set_layout: Option<&Des
         .build(device)
 }
 
-pub fn create_graphics_pipeline(device: Device, pipeline_layout: &PipelineLayout,
-        render_pass: &RenderPass, swap_chain_extent: Extent2d, vert_shader_code: &[u32],
-        frag_shader_code: &[u32]) -> VdResult<GraphicsPipeline> {
+pub fn create_graphics_pipeline(device: Device,
+                                pipeline_layout: &PipelineLayout,
+                                render_pass: &RenderPass,
+                                swap_chain_extent: Extent2d,
+                                vert_shader_code: &[u32],
+                                frag_shader_code: &[u32]) -> VdResult<GraphicsPipeline> {
     let vert_shader_module = ShaderModule::new(device.clone(), vert_shader_code)?;
     let frag_shader_module = ShaderModule::new(device.clone(), frag_shader_code)?;
 
@@ -721,17 +735,19 @@ pub fn create_graphics_pipeline(device: Device, pipeline_layout: &PipelineLayout
         .build(device)
 }
 
-pub fn create_command_pool(device: Device, surface: &SurfaceKhr)
-        -> VdResult<CommandPool> {
+pub fn create_command_pool(device: Device,
+                           surface: &SurfaceKhr) -> VdResult<CommandPool> {
     let queue_family_indices = find_queue_families(device.physical_device(), surface)?;
     CommandPool::builder()
         .queue_family_index(queue_family_indices.graphics_family_idx)
         .build(device)
 }
 
-pub fn create_framebuffers(device: &Device, render_pass: &RenderPass,
-        swapchain_image_views: &[ImageView], depth_image_view: &ImageView,
-        swapchain_extent: Extent2d) -> VdResult<Vec<Framebuffer>> {
+pub fn create_framebuffers(device: &Device,
+                           render_pass: &RenderPass,
+                           swapchain_image_views: &[ImageView],
+                           depth_image_view: &ImageView,
+                           swapchain_extent: Extent2d) -> VdResult<Vec<Framebuffer>> {
     swapchain_image_views.iter().map(|image_view| {
         let attachments = [image_view, depth_image_view];
         Framebuffer::builder()
@@ -745,14 +761,14 @@ pub fn create_framebuffers(device: &Device, render_pass: &RenderPass,
 }
 
 
-fn begin_single_time_commands(command_pool: &CommandPool)
-        -> VdResult<CommandBuffer> {
+fn begin_single_time_commands(command_pool: &CommandPool) -> VdResult<CommandBuffer> {
     let command_buffer = command_pool.allocate_command_buffer(CommandBufferLevel::Primary)?;
     command_buffer.begin(CommandBufferUsageFlags::ONE_TIME_SUBMIT)?;
     Ok(command_buffer)
 }
 
-fn end_single_time_commands(device: &Device, command_buffer: CommandBuffer) -> VdResult<()> {
+fn end_single_time_commands(device: &Device,
+                            command_buffer: CommandBuffer) -> VdResult<()> {
     command_buffer.end()?;
 
     let command_buffers = [command_buffer.handle()];
@@ -770,9 +786,12 @@ fn has_stencil_component(format: Format) -> bool {
     format == Format::D32SfloatS8Uint || format == Format::D24UnormS8Uint
 }
 
-fn transition_image_layout(device: &Device, command_pool: &CommandPool, image: &Image,
-        format: Format, old_layout: ImageLayout, new_layout: ImageLayout)
-         -> VdResult<()> {
+fn transition_image_layout(device: &Device,
+                           command_pool: &CommandPool,
+                           image: &Image,
+                           format: Format,
+                           old_layout: ImageLayout,
+                           new_layout: ImageLayout) -> VdResult<()> {
     let command_buffer = begin_single_time_commands(command_pool)?;
 
     let subresource_range = ImageSubresourceRange::builder()
@@ -840,8 +859,12 @@ fn transition_image_layout(device: &Device, command_pool: &CommandPool, image: &
     end_single_time_commands(device, command_buffer)
 }
 
-fn copy_buffer_to_image(device: &Device, command_pool: &CommandPool, buffer: &Buffer,
-        image: &Image, width: u32, height: u32)  -> VdResult<()> {
+fn copy_buffer_to_image(device: &Device,
+                        command_pool: &CommandPool,
+                        buffer: &Buffer,
+                        image: &Image,
+                        width: u32,
+                        height: u32)  -> VdResult<()> {
     let command_buffer = begin_single_time_commands(command_pool)?;
 
     let image_subresource_layers = ImageSubresourceLayers::builder()
@@ -868,8 +891,11 @@ fn copy_buffer_to_image(device: &Device, command_pool: &CommandPool, buffer: &Bu
     end_single_time_commands(device, command_buffer)
 }
 
-fn copy_buffer(device: &Device, command_pool: &CommandPool, src_buffer: &Buffer,
-        dst_buffer: &Buffer, size: DeviceSize)  -> VdResult<()> {
+fn copy_buffer(device: &Device,
+               command_pool: &CommandPool,
+               src_buffer: &Buffer,
+               dst_buffer: &Buffer,
+               size: DeviceSize)  -> VdResult<()> {
     let command_buffer = begin_single_time_commands(command_pool)?;
 
     let copy_region = BufferCopy::builder()
@@ -885,7 +911,8 @@ fn copy_buffer(device: &Device, command_pool: &CommandPool, src_buffer: &Buffer,
 }
 
 
-fn load_model(device: &Device, model_path: &Path) -> VdResult<(Vec<Vertex>, Vec<u32>)> {
+fn load_model(device: &Device,
+              model_path: &Path) -> VdResult<(Vec<Vertex>, Vec<u32>)> {
     let (models, materials) = tobj::load_obj(model_path)
         .expect("Error loading model");
 
@@ -927,8 +954,9 @@ fn load_model(device: &Device, model_path: &Path) -> VdResult<(Vec<Vertex>, Vec<
     Ok((vertices, indices))
 }
 
-pub fn create_vertex_buffer(device: &Device, command_pool: &CommandPool, vertices: &[Vertex])
-        -> VdResult<(Buffer, DeviceMemory)> {
+pub fn create_vertex_buffer(device: &Device,
+                            command_pool: &CommandPool,
+                            vertices: &[Vertex]) -> VdResult<(Buffer, DeviceMemory)> {
     let buffer_bytes = (mem::size_of::<Vertex>() * vertices.len()) as u64;
 
     let staging_buffer = Buffer::builder()
@@ -972,8 +1000,9 @@ pub fn create_vertex_buffer(device: &Device, command_pool: &CommandPool, vertice
     Ok((vertex_buffer, vertex_buffer_memory))
 }
 
-pub fn create_index_buffer<T: Copy>(device: &Device, command_pool: &CommandPool, indices: &[T])
-        -> VdResult<(Buffer, DeviceMemory)> {
+pub fn create_index_buffer<T: Copy>(device: &Device,
+                                    command_pool: &CommandPool,
+                                    indices: &[T]) -> VdResult<(Buffer, DeviceMemory)> {
     let buffer_bytes = (mem::size_of::<T>() * indices.len()) as u64;
 
     let staging_buffer = Buffer::builder()
@@ -1017,8 +1046,9 @@ pub fn create_index_buffer<T: Copy>(device: &Device, command_pool: &CommandPool,
     Ok((index_buffer, index_buffer_memory))
 }
 
-pub fn create_uniform_buffer(device: &Device, _command_pool: &CommandPool, _extent: Extent2d)
-        -> VdResult<(Buffer, DeviceMemory)> {
+pub fn create_uniform_buffer(device: &Device,
+                             _command_pool: &CommandPool,
+                             _extent: Extent2d) -> VdResult<(Buffer, DeviceMemory)> {
     let buffer_bytes = mem::size_of::<UniformBufferObject>() as u64;
     let uniform_buffer = Buffer::builder()
         .size(buffer_bytes)
@@ -1038,8 +1068,9 @@ pub fn create_uniform_buffer(device: &Device, _command_pool: &CommandPool, _exte
     Ok((uniform_buffer, uniform_buffer_memory))
 }
 
-pub fn create_depth_resources(device: &Device, command_pool: &CommandPool,
-        swapchain_extent: Extent2d) -> VdResult<(Image, DeviceMemory, ImageView)> {
+pub fn create_depth_resources(device: &Device,
+                              command_pool: &CommandPool,
+                              swapchain_extent: Extent2d) -> VdResult<(Image, DeviceMemory, ImageView)> {
     let depth_format = find_depth_format(device)?;
     let extent = Extent3d::builder()
         .width(swapchain_extent.width())
@@ -1089,8 +1120,68 @@ pub fn create_depth_resources(device: &Device, command_pool: &CommandPool,
     Ok((depth_image, depth_image_memory, depth_image_view))
 }
 
-pub fn create_texture_image(device: &Device, command_pool: &CommandPool, texture_path: &str)
-        -> VdResult<(Image, DeviceMemory)> {
+#[allow(unused_variables)]
+pub fn create_command_buffers(device: &Device,
+                              command_pool: &CommandPool,
+                              render_pass: &RenderPass,
+                              graphics_pipeline: &GraphicsPipeline,
+                              swapchain_framebuffers: &[Framebuffer],
+                              swapchain_extent: &Extent2d,
+                              vertex_buffer: &Buffer,
+                              index_buffer: &Buffer,
+                              vertex_count: u32,
+                              index_count: u32,
+                              pipeline_layout: &PipelineLayout,
+                              descriptor_set: DescriptorSet) -> VdResult<SmallVec<[CommandBuffer; 16]>>
+{
+    let command_buffers = command_pool.allocate_command_buffers(CommandBufferLevel::Primary,
+            swapchain_framebuffers.len() as u32)?;
+
+    let vertex_buffers = [vertex_buffer];
+    let offsets = [0];
+    let descriptor_sets = [&descriptor_set];
+
+    for (cmd_buf, swapchain_framebuffer) in command_buffers.iter()
+            .zip(swapchain_framebuffers.iter())
+    {
+        cmd_buf.begin(CommandBufferUsageFlags::SIMULTANEOUS_USE)?;
+
+        let clear_values = &[
+            ClearValue { color: ClearColorValue {
+                float32: [0.0f32, 0.0f32, 0.0f32, 1.0f32] } },
+            ClearValue { depthStencil: vks::VkClearDepthStencilValue {
+                depth: 1.0, stencil: 0, } },
+        ];
+
+        let render_pass_info = RenderPassBeginInfo::builder()
+            .render_pass(render_pass)
+            .framebuffer(swapchain_framebuffer)
+            .render_area(Rect2d::builder()
+                .offset(Offset2d::builder().x(0).y(0).build())
+                .extent(swapchain_extent.clone())
+                .build())
+            .clear_values(clear_values)
+            .build();
+
+        cmd_buf.begin_render_pass(&render_pass_info, SubpassContents::Inline);
+        cmd_buf.bind_pipeline(PipelineBindPoint::Graphics, &graphics_pipeline);
+        cmd_buf.bind_vertex_buffers(0, &vertex_buffers, &offsets);
+        cmd_buf.bind_index_buffer(index_buffer, 0, IndexType::Uint32);
+        cmd_buf.bind_descriptor_sets(PipelineBindPoint::Graphics, pipeline_layout,
+            0, &descriptor_sets, &[]);
+
+        cmd_buf.draw_indexed(index_count, 1, 0, 0, 0);
+
+        cmd_buf.end_render_pass();
+        cmd_buf.end()?;
+    }
+    Ok(command_buffers)
+}
+
+
+pub fn create_texture_image(device: &Device,
+                            command_pool: &CommandPool,
+                            texture_path: &str) -> VdResult<(Image, DeviceMemory)> {
     let pixels = image::open(texture_path).unwrap().to_rgba();
     let (tex_width, tex_height) = pixels.dimensions();
     let image_bytes = (tex_width * tex_height * 4) as u64;
@@ -1153,7 +1244,8 @@ pub fn create_texture_image(device: &Device, command_pool: &CommandPool, texture
     Ok((texture_image, texture_image_memory))
 }
 
-pub fn create_texture_image_view(device: Device, image: &Image) -> VdResult<ImageView> {
+pub fn create_texture_image_view(device: Device,
+                                 image: &Image) -> VdResult<ImageView> {
     ImageView::builder()
         .image(image.handle())
         .view_type(ImageViewType::Type2d)
@@ -1188,59 +1280,6 @@ pub fn create_texture_sampler(device: Device) -> VdResult<Sampler> {
         .border_color(BorderColor::IntOpaqueBlack)
         .unnormalized_coordinates(false)
         .build(device)
-}
-
-#[allow(unused_variables)]
-pub fn create_command_buffers(device: &Device, command_pool: &CommandPool,
-        render_pass: &RenderPass, graphics_pipeline: &GraphicsPipeline,
-        swapchain_framebuffers: &[Framebuffer], swapchain_extent: &Extent2d,
-        vertex_buffer: &Buffer, index_buffer: &Buffer, vertex_count: u32,
-        index_count: u32, pipeline_layout: &PipelineLayout,
-        descriptor_set: DescriptorSet)
-        -> VdResult<SmallVec<[CommandBuffer; 16]>>
-{
-    let command_buffers = command_pool.allocate_command_buffers(CommandBufferLevel::Primary,
-            swapchain_framebuffers.len() as u32)?;
-
-    let vertex_buffers = [vertex_buffer];
-    let offsets = [0];
-    let descriptor_sets = [&descriptor_set];
-
-    for (cmd_buf, swapchain_framebuffer) in command_buffers.iter()
-            .zip(swapchain_framebuffers.iter())
-    {
-        cmd_buf.begin(CommandBufferUsageFlags::SIMULTANEOUS_USE)?;
-
-        let clear_values = &[
-            ClearValue { color: ClearColorValue {
-                float32: [0.0f32, 0.0f32, 0.0f32, 1.0f32] } },
-            ClearValue { depthStencil: vks::VkClearDepthStencilValue {
-                depth: 1.0, stencil: 0, } },
-        ];
-
-        let render_pass_info = RenderPassBeginInfo::builder()
-            .render_pass(render_pass)
-            .framebuffer(swapchain_framebuffer)
-            .render_area(Rect2d::builder()
-                .offset(Offset2d::builder().x(0).y(0).build())
-                .extent(swapchain_extent.clone())
-                .build())
-            .clear_values(clear_values)
-            .build();
-
-        cmd_buf.begin_render_pass(&render_pass_info, SubpassContents::Inline);
-        cmd_buf.bind_pipeline(PipelineBindPoint::Graphics, &graphics_pipeline);
-        cmd_buf.bind_vertex_buffers(0, &vertex_buffers, &offsets);
-        cmd_buf.bind_index_buffer(index_buffer, 0, IndexType::Uint32);
-        cmd_buf.bind_descriptor_sets(PipelineBindPoint::Graphics, pipeline_layout,
-            0, &descriptor_sets, &[]);
-
-        cmd_buf.draw_indexed(index_count, 1, 0, 0, 0);
-
-        cmd_buf.end_render_pass();
-        cmd_buf.end()?;
-    }
-    Ok(command_buffers)
 }
 
 
